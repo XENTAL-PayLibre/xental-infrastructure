@@ -7,7 +7,7 @@ name: xental
 
 services:
   alloy:
-    image: grafana/alloy:v1.5.1
+    image: ${ALLOY_IMAGE:-grafana/alloy:v1.5.1}
     container_name: xental-alloy
     restart: unless-stopped
     networks: [internal]            # reach xental-api / paylibre-api for /metrics
