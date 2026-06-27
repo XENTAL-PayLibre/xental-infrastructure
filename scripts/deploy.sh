@@ -42,12 +42,18 @@ fi
 # Database backups run in every environment.
 BACKUP_OVERLAY=(-f compose/docker-compose.backup.yml)
 
+# Include the CrowdSec runtime-security overlay only when a bouncer key is set.
+SEC_OVERLAY=()
+if grep -qE '^CROWDSEC_BOUNCER_KEY=.+' "$INCOMING"; then
+  SEC_OVERLAY=(-f compose/docker-compose.security.yml)
+fi
+
 deploy_with() {
   local ef="$1"
   # --project-directory pins relative bind-mount paths (./scripts, ./traefik)
   # to the repo root rather than the compose/ subdir where the files live.
-  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" "${MON_OVERLAY[@]}" "${BACKUP_OVERLAY[@]}" --env-file "$ef" pull
-  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" "${MON_OVERLAY[@]}" "${BACKUP_OVERLAY[@]}" --env-file "$ef" up -d --remove-orphans
+  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" "${MON_OVERLAY[@]}" "${BACKUP_OVERLAY[@]}" "${SEC_OVERLAY[@]}" --env-file "$ef" pull
+  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" "${MON_OVERLAY[@]}" "${BACKUP_OVERLAY[@]}" "${SEC_OVERLAY[@]}" --env-file "$ef" up -d --remove-orphans
 }
 
 ghcr_login_from() {

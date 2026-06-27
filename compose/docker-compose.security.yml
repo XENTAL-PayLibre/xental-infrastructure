@@ -1,0 +1,40 @@
+# CrowdSec runtime-security overlay (opt-in). Included by deploy.sh only when
+# CROWDSEC_BOUNCER_KEY is set. To activate, also set in the env:
+#   TRAEFIK_CONFIG=traefik.crowdsec.yml
+#   TRAEFIK_DYNAMIC_DIR=dynamic-crowdsec
+# so Traefik loads the bouncer plugin + the api-chain that calls it.
+name: xental
+
+services:
+  crowdsec:
+    image: ${CROWDSEC_IMAGE:-crowdsecurity/crowdsec:v1.6.4}
+    container_name: xental-crowdsec
+    restart: unless-stopped
+    networks: [edge, internal]
+    environment:
+      # Pre-registers a bouncer named "traefik" with this key; the Traefik plugin
+      # authenticates to the LAPI with the same key.
+      BOUNCER_KEY_traefik: ${CROWDSEC_BOUNCER_KEY}
+      COLLECTIONS: "crowdsecurity/traefik crowdsecurity/base-http-scenarios crowdsecurity/http-cve"
+    volumes:
+      - ./crowdsec/acquis.yaml:/etc/crowdsec/acquis.yaml:ro
+      - traefik-logs:/var/log/traefik:ro
+      - crowdsec-db:/var/lib/crowdsec/data
+
+  traefik:
+    depends_on:
+      - crowdsec
+    volumes:
+      - traefik-logs:/var/log/traefik     # access logs for CrowdSec to parse
+    labels:
+      # Bouncer middleware (referenced by api-chain as crowdsec@docker). LAPI key
+      # is injected from the env here (labels expand vars; the file provider does not).
+      - "traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer.enabled=true"
+      - "traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer.crowdsecmode=stream"
+      - "traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer.crowdseclapischeme=http"
+      - "traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer.crowdseclapihost=crowdsec:8080"
+      - "traefik.http.middlewares.crowdsec.plugin.crowdsec-bouncer.crowdseclapikey=${CROWDSEC_BOUNCER_KEY}"
+
+volumes:
+  traefik-logs:
+  crowdsec-db:

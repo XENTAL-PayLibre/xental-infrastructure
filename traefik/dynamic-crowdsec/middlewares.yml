@@ -1,0 +1,30 @@
+# Dynamic config for CrowdSec mode. Same headers + rate-limit as the base, but
+# api-chain also runs the CrowdSec bouncer (defined as a Docker-label middleware
+# on the traefik service so the LAPI key can come from an env var).
+http:
+  middlewares:
+    security-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        customResponseHeaders:
+          Server: ""
+          X-Powered-By: ""
+
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1s
+
+    api-chain:
+      chain:
+        middlewares:
+          - security-headers
+          - rate-limit
+          - crowdsec@docker

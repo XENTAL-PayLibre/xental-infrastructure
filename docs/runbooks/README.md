@@ -11,6 +11,7 @@ Operational playbooks for the Xental platform. Start here.
 | [secret-rotation.md](secret-rotation.md) | Rotate DB / GHCR / SSH / Slack secrets |
 | [backup-restore.md](backup-restore.md) | Back up or restore a database |
 | [observability.md](observability.md) | View metrics, logs, traces; manage alerts |
+| [security.md](security.md) | Runtime security; enable/operate CrowdSec |
 
 Reference docs: [../ENVIRONMENT.md](../ENVIRONMENT.md) (config/secrets model),
 [../../README.md](../../README.md) (architecture), [../../RUNBOOK.md](../../RUNBOOK.md)

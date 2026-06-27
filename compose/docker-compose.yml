@@ -36,8 +36,9 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      # Config + dynamic dir are env-selectable (base vs crowdsec variants).
+      - ./traefik/${TRAEFIK_CONFIG:-traefik.yml}:/etc/traefik/traefik.yml:ro
+      - ./traefik/${TRAEFIK_DYNAMIC_DIR:-dynamic}:/etc/traefik/dynamic:ro
       - traefik-acme:/acme
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
