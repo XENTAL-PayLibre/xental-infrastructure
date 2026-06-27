@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Manual rollback for one environment. Two modes:
+# Host-side manual rollback for one environment. Runs ON the EC2 host against
+# the runtime env files shipped there. Two modes:
 #
-#   scripts/rollback.sh <env>                 # roll back to the PREVIOUS pins
-#                                             # (reverts the last versions change)
-#   scripts/rollback.sh <env> <sha>          # roll back BOTH apps to sha-<sha>
+#   scripts/rollback.sh <env>            # redeploy the PREVIOUS known-good release
+#                                        # (env/<env>.runtime.env.deployed.prev)
+#   scripts/rollback.sh <env> <sha>      # pin BOTH apps to sha-<sha> and redeploy
 #
-# This rewrites versions/<env>.env, commits it (so git stays the source of
-# truth), pushes, and redeploys via deploy.sh (which still health-checks).
+# For a git-tracked, audited rollback prefer the "Rollback" GitHub Actions
+# workflow, which reverts the version pins and re-ships. This script is the
+# break-glass path when you are already on the host (via SSH).
 set -euo pipefail
 
 ENV_NAME="${1:?usage: rollback.sh <staging|production> [sha]}"
@@ -15,30 +17,37 @@ REPO_DIR="${REPO_DIR:-/opt/xental-infrastructure}"
 cd "$REPO_DIR"
 
 case "$ENV_NAME" in
-  staging)    BRANCH=staging ;;
-  production) BRANCH=main ;;
+  staging)    OVERRIDE=compose/docker-compose.staging.yml ;;
+  production) OVERRIDE=compose/docker-compose.production.yml ;;
   *) echo "unknown environment: $ENV_NAME" >&2; exit 2 ;;
 esac
 
-VERSIONS="versions/${ENV_NAME}.env"
-git fetch --prune origin
-git checkout "$BRANCH"
-git reset --hard "origin/${BRANCH}"
+BASE=compose/docker-compose.yml
+INCOMING="env/${ENV_NAME}.runtime.env"
+DEPLOYED="env/${ENV_NAME}.runtime.env.deployed"
+
+deploy_with() {
+  local ef="$1"
+  local u t
+  u="$(sed -n 's/^GHCR_USER=//p'  "$ef" | head -n1)"
+  t="$(sed -n 's/^GHCR_TOKEN=//p' "$ef" | head -n1)"
+  [[ -n "$t" ]] && echo "$t" | docker login ghcr.io -u "${u:-x-access-token}" --password-stdin || true
+  docker compose -f "$BASE" -f "$OVERRIDE" --env-file "$ef" pull
+  docker compose -f "$BASE" -f "$OVERRIDE" --env-file "$ef" up -d --remove-orphans
+}
 
 if [[ -n "$TARGET_SHA" ]]; then
-  echo "==> Pinning ${ENV_NAME} apps to sha-${TARGET_SHA}"
-  sed -i -E "s#(XENTAL_API_IMAGE=ghcr.io/[^:]+):.*#\1:sha-${TARGET_SHA}#"   "$VERSIONS"
-  sed -i -E "s#(PAYLIBRE_API_IMAGE=ghcr.io/[^:]+):.*#\1:sha-${TARGET_SHA}#" "$VERSIONS"
+  echo "==> Pinning ${ENV_NAME} apps to sha-${TARGET_SHA} and redeploying"
+  src="${DEPLOYED:-$INCOMING}"; [[ -f "$src" ]] || src="$INCOMING"
+  cp "$src" "$INCOMING"
+  sed -i -E "s#^(XENTAL_API_IMAGE=ghcr.io/[^:]+):.*#\1:sha-${TARGET_SHA}#"   "$INCOMING"
+  sed -i -E "s#^(PAYLIBRE_API_IMAGE=ghcr.io/[^:]+):.*#\1:sha-${TARGET_SHA}#" "$INCOMING"
+  deploy_with "$INCOMING"
 else
-  echo "==> Reverting ${ENV_NAME} to the previous pins"
-  # Restore the version of the file from the commit before the latest change.
-  prev_commit="$(git log -n 2 --format='%H' -- "$VERSIONS" | tail -n 1)"
-  [[ -n "$prev_commit" ]] || { echo "no prior version to roll back to" >&2; exit 1; }
-  git checkout "$prev_commit" -- "$VERSIONS"
+  echo "==> Rolling ${ENV_NAME} back to the previous known-good release"
+  [[ -f "${DEPLOYED}.prev" ]] || { echo "no previous release recorded on host" >&2; exit 1; }
+  deploy_with "${DEPLOYED}.prev"
+  cp "${DEPLOYED}.prev" "$DEPLOYED"
 fi
 
-git add "$VERSIONS"
-git -c commit.gpgsign=false commit -m "rollback(${ENV_NAME}): ${TARGET_SHA:-previous pins}"
-git push origin "$BRANCH"
-
-exec scripts/deploy.sh "$ENV_NAME"
+scripts/healthcheck.sh

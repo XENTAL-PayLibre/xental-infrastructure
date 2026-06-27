@@ -28,10 +28,17 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-# --- Security group: only 80/443 from the internet --------------------------
+# --- SSH key authorised on the hosts ----------------------------------------
+resource "aws_key_pair" "deploy" {
+  key_name   = "xental-deploy"
+  public_key = var.ssh_public_key
+  tags       = var.tags
+}
+
+# --- Security group: 80/443 public + 22 (key-only) --------------------------
 resource "aws_security_group" "web" {
   name        = "xental-web"
-  description = "Public HTTP/HTTPS for Traefik; egress all. No inbound SSH (SSM only)."
+  description = "Public HTTP/HTTPS for Traefik + SSH for deploys (key-only)."
   vpc_id      = data.aws_vpc.default.id
   tags        = var.tags
 
@@ -48,6 +55,13 @@ resource "aws_security_group" "web" {
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
+    description = "SSH (key-only; from GitHub Actions runners)"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.ssh_ingress_cidr]
   }
   egress {
     from_port   = 0
@@ -66,6 +80,7 @@ resource "aws_instance" "host" {
   subnet_id              = data.aws_subnets.default.ids[0]
   vpc_security_group_ids = [aws_security_group.web.id]
   iam_instance_profile   = aws_iam_instance_profile.host.name
+  key_name               = aws_key_pair.deploy.key_name
 
   metadata_options {
     http_tokens = "required" # IMDSv2 only
@@ -77,15 +92,24 @@ resource "aws_instance" "host" {
     encrypted   = true
   }
 
+  # Install Docker + compose, grant the login user docker access, prepare the
+  # deploy dir. Files + the rendered env are rsynced in later by the workflow.
   user_data = <<-EOF
     #!/usr/bin/env bash
     set -euxo pipefail
-    export ENV_NAME="${each.key}"
-    export GIT_REMOTE="${var.git_remote}"
-    export AWS_REGION="${var.aws_region}"
-    # Pull the bootstrap script straight from the repo's main branch and run it.
-    curl -fsSL https://raw.githubusercontent.com/${var.github_org}/${var.infra_repo}/main/scripts/bootstrap-host.sh -o /root/bootstrap-host.sh
-    bash /root/bootstrap-host.sh
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -y
+    apt-get install -y ca-certificates curl
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    chmod a+r /etc/apt/keyrings/docker.asc
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+    apt-get update -y
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    systemctl enable --now docker
+    usermod -aG docker ubuntu || true
+    mkdir -p /opt/xental-infrastructure/env
+    chown -R ubuntu:ubuntu /opt/xental-infrastructure
   EOF
 
   tags = merge(var.tags, {

@@ -6,13 +6,14 @@ whatever `versions/<env>.env` says, and that file lives in git.**
 
 ## 1. Automatic rollback on a bad deploy (no action needed)
 
-Every deploy runs `scripts/deploy.sh`, which:
+Every deploy runs `scripts/deploy.sh` on the host, which:
 
-1. snapshots the currently-deployed pins (`versions/<env>.env`) before changing anything,
+1. keeps the last-known-good runtime env as `env/<env>.runtime.env.deployed`
+   (and one step of history as `.deployed.prev`),
 2. rolls out the new images,
 3. runs `scripts/healthcheck.sh` — hits `/health` on every app over the private network,
-4. **if health checks fail, it restores the snapshot, redeploys the previous
-   images, and exits non-zero** (the GitHub Actions run is marked failed).
+4. **if health checks fail, it redeploys the last-known-good env and exits
+   non-zero** (the GitHub Actions run is marked failed).
 
 So a release that doesn't come up healthy is reverted within the same job.
 
@@ -30,11 +31,12 @@ the approval gate.
 
 ## 3. Manual rollback on the host
 
+SSH in (or use SSM Session Manager for break-glass access), then:
+
 ```bash
-ssh-less:  use SSM Session Manager to open a shell on the host, then:
 cd /opt/xental-infrastructure
-sudo scripts/rollback.sh staging                # revert to previous pins
-sudo scripts/rollback.sh production 1a2b3c4      # pin both apps to sha-1a2b3c4
+scripts/rollback.sh staging                 # redeploy the previous known-good release
+scripts/rollback.sh production 1a2b3c4      # pin both apps to sha-1a2b3c4 and redeploy
 ```
 
 ## 4. Git revert (source-of-truth rollback)

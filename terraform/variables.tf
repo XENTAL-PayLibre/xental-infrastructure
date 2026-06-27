@@ -4,22 +4,15 @@ variable "aws_region" {
   description = "AWS region for all resources."
 }
 
-variable "github_org" {
+variable "ssh_public_key" {
   type        = string
-  default     = "XENTAL-PayLibre"
-  description = "GitHub organisation that owns the repos."
+  description = "SSH public key (contents of your id_ed25519.pub) authorised on the hosts. The matching private key goes into the GitHub secret SSH_PRIVATE_KEY."
 }
 
-variable "infra_repo" {
+variable "ssh_ingress_cidr" {
   type        = string
-  default     = "xental-infrastructure"
-  description = "Infra repo name (used in the OIDC trust policy)."
-}
-
-variable "git_remote" {
-  type        = string
-  default     = "https://github.com/XENTAL-PayLibre/xental-infrastructure.git"
-  description = "HTTPS URL the hosts clone the infra repo from."
+  default     = "0.0.0.0/0"
+  description = "CIDR allowed to reach port 22. GitHub-hosted runners use dynamic IPs, so this defaults to open; auth is key-only. Narrow it if you deploy from a fixed network."
 }
 
 variable "instance_types" {

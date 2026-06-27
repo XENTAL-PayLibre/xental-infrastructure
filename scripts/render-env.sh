@@ -2,22 +2,22 @@
 # Render the runtime env file for an environment by merging, in order of
 # increasing precedence:
 #
-#   1. env/common.env.example      (shared non-secret defaults)
-#   2. env/<env>.env.example       (env-specific non-secret config)
-#   3. versions/<env>.env          (pinned image tags)
-#   4. AWS SSM Parameter Store      (/xental/<env>/* SecureString secrets)
+#   1. env/common.env.example   (shared non-secret defaults)
+#   2. env/<env>.env.example    (env-specific non-secret config)
+#   3. versions/<env>.env       (pinned image tags)
+#   4. SECRETS from the process environment (exported by the GitHub Actions
+#      deploy job from GitHub Environment secrets)
 #
 # Output: env/<env>.runtime.env (chmod 600, git-ignored). docker compose then
 # consumes it via --env-file. Later layers win because --env-file keeps the
 # last definition of a duplicated key.
 #
-# Usage:  scripts/render-env.sh <staging|production>
-#         SKIP_SSM=1 scripts/render-env.sh staging   # offline (no secrets)
+# Usage:  POSTGRES_PASSWORD=... GHCR_TOKEN=... scripts/render-env.sh staging
+#         SKIP_SECRETS=1 scripts/render-env.sh staging   # offline (no secrets)
 set -euo pipefail
 
 ENV_NAME="${1:?usage: render-env.sh <staging|production>}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-eu-west-1}}"
 
 common="$REPO_DIR/env/common.env.example"
 envfile="$REPO_DIR/env/${ENV_NAME}.env.example"
@@ -27,6 +27,20 @@ out="$REPO_DIR/env/${ENV_NAME}.runtime.env"
 for f in "$common" "$envfile" "$versions"; do
   [[ -f "$f" ]] || { echo "ERROR: missing $f" >&2; exit 1; }
 done
+
+# Secrets expected in the environment. GHCR_USER is non-secret but travels with
+# the GHCR token. TRAEFIK_DASHBOARD_AUTH is staging-only (optional).
+REQUIRED_SECRETS=(
+  POSTGRES_PASSWORD
+  XENTAL_DB_PASSWORD
+  PAYLIBRE_DB_PASSWORD
+  REDIS_PASSWORD
+  GHCR_USER
+  GHCR_TOKEN
+)
+OPTIONAL_SECRETS=(
+  TRAEFIK_DASHBOARD_AUTH
+)
 
 # Keep only KEY=VALUE lines (drop comments/blanks) from the non-secret layers.
 keep_kv() { grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$1" || true; }
@@ -38,20 +52,19 @@ umask 077
   keep_kv "$envfile"
   keep_kv "$versions"
 
-  if [[ "${SKIP_SSM:-0}" != "1" ]]; then
-    # Pull every SecureString under /xental/<env>/ and emit NAME=VALUE,
-    # where NAME is the final path segment (e.g. POSTGRES_PASSWORD).
-    aws ssm get-parameters-by-path \
-      --path "/xental/${ENV_NAME}" \
-      --with-decryption --recursive \
-      --region "$AWS_REGION" \
-      --query 'Parameters[].[Name,Value]' --output text \
-    | while IFS=$'\t' read -r name value; do
-        [[ -n "$name" ]] || continue
-        printf '%s=%s\n' "${name##*/}" "$value"
-      done
+  if [[ "${SKIP_SECRETS:-0}" != "1" ]]; then
+    for v in "${REQUIRED_SECRETS[@]}"; do
+      if [[ -z "${!v:-}" ]]; then
+        echo "ERROR: required secret '$v' is not set in the environment" >&2
+        exit 1
+      fi
+      printf '%s=%s\n' "$v" "${!v}"
+    done
+    for v in "${OPTIONAL_SECRETS[@]}"; do
+      [[ -n "${!v:-}" ]] && printf '%s=%s\n' "$v" "${!v}" || true
+    done
   else
-    echo "# SKIP_SSM=1: secrets omitted (offline render)" >&2
+    echo "# SKIP_SECRETS=1: secrets omitted (offline render)" >&2
   fi
 } > "$out"
 

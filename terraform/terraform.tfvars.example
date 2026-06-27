@@ -1,9 +1,12 @@
 # Copy to terraform.tfvars and adjust. Do NOT commit terraform.tfvars.
 aws_region = "eu-west-1"
 
-# Defaults already target the XENTAL-PayLibre org; override if needed.
-# github_org = "XENTAL-PayLibre"
-# infra_repo = "xental-infrastructure"
+# Contents of your PUBLIC key (e.g. ~/.ssh/xental_deploy.pub). The matching
+# private key becomes the GitHub secret SSH_PRIVATE_KEY.
+ssh_public_key = "ssh-ed25519 AAAA... you@example.com"
+
+# Optional: narrow SSH exposure (default is open, key-only auth).
+# ssh_ingress_cidr = "203.0.113.10/32"
 
 instance_types = {
   staging    = "t3.small"
