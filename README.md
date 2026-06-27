@@ -56,6 +56,9 @@ reviewers before step 3 runs.
 
 ---
 
+> For the operational step-by-step (provision → IPs for DNS → deploy → verify
+> push-triggers), see **[RUNBOOK.md](RUNBOOK.md)**.
+
 # First-time bring-up (detailed)
 
 Do this once. ~30–45 minutes. Commands assume a bash shell with `aws`,
