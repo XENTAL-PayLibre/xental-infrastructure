@@ -42,6 +42,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       ACME_EMAIL: ${ACME_EMAIL}
+      # Pin the Docker API version Traefik uses: Engine 29+ rejects the client's
+      # 1.24 fallback (daemon min is 1.40). 1.44 is supported by the daemon.
+      DOCKER_API_VERSION: "1.44"
     labels:
       - "traefik.enable=true"
 
