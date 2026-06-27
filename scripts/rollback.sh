@@ -32,8 +32,8 @@ deploy_with() {
   u="$(sed -n 's/^GHCR_USER=//p'  "$ef" | head -n1)"
   t="$(sed -n 's/^GHCR_TOKEN=//p' "$ef" | head -n1)"
   [[ -n "$t" ]] && echo "$t" | docker login ghcr.io -u "${u:-x-access-token}" --password-stdin || true
-  docker compose -f "$BASE" -f "$OVERRIDE" --env-file "$ef" pull
-  docker compose -f "$BASE" -f "$OVERRIDE" --env-file "$ef" up -d --remove-orphans
+  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" --env-file "$ef" pull
+  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" --env-file "$ef" up -d --remove-orphans
 }
 
 if [[ -n "$TARGET_SHA" ]]; then

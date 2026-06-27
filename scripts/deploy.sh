@@ -34,8 +34,10 @@ DEPLOYED="env/${ENV_NAME}.runtime.env.deployed"
 
 deploy_with() {
   local ef="$1"
-  docker compose -f "$BASE" -f "$OVERRIDE" --env-file "$ef" pull
-  docker compose -f "$BASE" -f "$OVERRIDE" --env-file "$ef" up -d --remove-orphans
+  # --project-directory pins relative bind-mount paths (./scripts, ./traefik)
+  # to the repo root rather than the compose/ subdir where the files live.
+  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" --env-file "$ef" pull
+  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" --env-file "$ef" up -d --remove-orphans
 }
 
 ghcr_login_from() {
