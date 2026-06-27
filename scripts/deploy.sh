@@ -32,12 +32,19 @@ DEPLOYED="env/${ENV_NAME}.runtime.env.deployed"
 
 [[ -f "$INCOMING" ]] || { echo "ERROR: $INCOMING not present (was it shipped?)" >&2; exit 1; }
 
+# Include the monitoring overlay (Alloy: metrics + logs) only when the runtime
+# env points at a monitoring host.
+MON_OVERLAY=()
+if grep -qE '^MONITORING_HOST=.+' "$INCOMING"; then
+  MON_OVERLAY=(-f compose/docker-compose.monitoring.yml)
+fi
+
 deploy_with() {
   local ef="$1"
   # --project-directory pins relative bind-mount paths (./scripts, ./traefik)
   # to the repo root rather than the compose/ subdir where the files live.
-  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" --env-file "$ef" pull
-  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" --env-file "$ef" up -d --remove-orphans
+  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" "${MON_OVERLAY[@]}" --env-file "$ef" pull
+  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" "${MON_OVERLAY[@]}" --env-file "$ef" up -d --remove-orphans
 }
 
 ghcr_login_from() {

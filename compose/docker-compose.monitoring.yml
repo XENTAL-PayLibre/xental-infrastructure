@@ -1,0 +1,30 @@
+# Monitoring overlay for the app hosts. Adds a single Grafana Alloy agent that
+# ships metrics + logs (and forwards traces) to the monitoring host.
+#
+# Included by deploy.sh ONLY when MONITORING_HOST is set in the runtime env, so
+# the stack runs fine before observability is provisioned.
+name: xental
+
+services:
+  alloy:
+    image: grafana/alloy:v1.5.1
+    container_name: xental-alloy
+    restart: unless-stopped
+    networks: [internal]            # reach xental-api / paylibre-api for /metrics
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+    environment:
+      MONITORING_HOST: ${MONITORING_HOST}
+      ENVIRONMENT: ${ENVIRONMENT}
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/rootfs:ro                # node exporter host metrics
+      - alloy-data:/var/lib/alloy/data
+    pid: host                       # accurate host process/network metrics
+
+volumes:
+  alloy-data:

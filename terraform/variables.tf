@@ -30,6 +30,18 @@ variable "root_volume_gb" {
   description = "Root EBS volume size in GB."
 }
 
+variable "monitoring_instance_type" {
+  type        = string
+  default     = "t3.small"
+  description = "EC2 type for the observability/monitoring host (free-tier-eligible)."
+}
+
+variable "monitoring_volume_gb" {
+  type        = number
+  default     = 40
+  description = "Root EBS volume size (GB) for the monitoring host (metrics/logs retention)."
+}
+
 variable "tags" {
   type        = map(string)
   default     = { Project = "xental", ManagedBy = "terraform" }
