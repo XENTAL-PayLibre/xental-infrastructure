@@ -40,6 +40,7 @@ REQUIRED_SECRETS=(
 )
 OPTIONAL_SECRETS=(
   TRAEFIK_DASHBOARD_AUTH
+  CROWDSEC_BOUNCER_KEY
 )
 
 # Keep only KEY=VALUE lines (drop comments/blanks) from the non-secret layers.

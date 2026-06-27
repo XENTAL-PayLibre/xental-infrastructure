@@ -1,0 +1,5 @@
+# CrowdSec log acquisition: parse Traefik access logs (HTTP attack scenarios).
+filenames:
+  - /var/log/traefik/access.log
+labels:
+  type: traefik
