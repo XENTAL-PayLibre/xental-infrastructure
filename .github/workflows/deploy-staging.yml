@@ -1,0 +1,26 @@
+# Staging deploy. Fired automatically by an app repo after it pushes a new
+# image (repository_dispatch: deploy-staging), or manually.
+name: Deploy staging
+
+on:
+  repository_dispatch:
+    types: [deploy-staging]
+  workflow_dispatch:
+    inputs:
+      service:
+        description: app to release (xental-backend | paylibre); empty = redeploy current
+        required: false
+        default: ""
+      sha:
+        description: app image git SHA to pin
+        required: false
+        default: ""
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: staging
+      service: ${{ github.event.inputs.service || github.event.client_payload.service || '' }}
+      sha: ${{ github.event.inputs.sha || github.event.client_payload.sha || '' }}
+    secrets: inherit

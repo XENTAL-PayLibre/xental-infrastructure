@@ -1,0 +1,20 @@
+# Dynamic Traefik configuration (hot-reloaded).
+http:
+  middlewares:
+    # Sensible security headers applied to every public router.
+    security-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        customResponseHeaders:
+          Server: ""
+          X-Powered-By: ""
+
+# The staging dashboard's basic-auth middleware is defined via a Docker label
+# on the traefik service (compose/docker-compose.staging.yml), because the file
+# provider does not expand environment variables but Docker labels do.

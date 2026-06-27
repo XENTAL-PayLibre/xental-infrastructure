@@ -1,0 +1,30 @@
+# Staging overrides — more permissive, smaller footprint.
+name: xental
+
+services:
+  traefik:
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+    labels:
+      # Expose the Traefik dashboard on staging only, behind basic auth.
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${ENVIRONMENT}.${DOMAIN}`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth"
+      # Basic-auth credentials come from the runtime env (htpasswd user:hash).
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}"
+
+  xental-api:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  paylibre-api:
+    deploy:
+      resources:
+        limits:
+          memory: 512M

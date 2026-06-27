@@ -1,0 +1,141 @@
+# Base composition for the Xental platform.
+#
+# This file is environment-agnostic: every value that differs between staging
+# and prod comes from the runtime env file (env/<env>.runtime.env), and every
+# image tag comes from versions/<env>.env. Deploy with:
+#
+#   docker compose -f compose/docker-compose.yml \
+#                  -f compose/docker-compose.<env>.yml \
+#                  --env-file env/<env>.runtime.env up -d
+#
+# Nothing secret or environment-specific is hard-coded here.
+
+name: xental
+
+networks:
+  edge:        # public-facing, only Traefik is attached + published
+    name: xental-edge
+  internal:    # private app/db network, never published to the host
+    name: xental-internal
+
+volumes:
+  traefik-acme:      # Let's Encrypt certificate store
+  postgres-data:     # database persistence
+  redis-data:
+  xental-logs:       # app log volumes (written by non-root app user)
+  paylibre-logs:
+
+services:
+  # ---- Reverse proxy / TLS termination --------------------------------
+  traefik:
+    image: ${TRAEFIK_IMAGE:-traefik:v3.3}
+    container_name: xental-traefik
+    restart: unless-stopped
+    networks: [edge, internal]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - traefik-acme:/acme
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+    labels:
+      - "traefik.enable=true"
+
+  # ---- Shared backing services ----------------------------------------
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:17-alpine}
+    container_name: xental-postgres
+    restart: unless-stopped
+    networks: [internal]
+    environment:
+      # Superuser; per-service databases/users are created by the init script.
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_USER}
+      XENTAL_DB_NAME: ${XENTAL_DB_NAME}
+      XENTAL_DB_USER: ${XENTAL_DB_USER}
+      XENTAL_DB_PASSWORD: ${XENTAL_DB_PASSWORD}
+      PAYLIBRE_DB_NAME: ${PAYLIBRE_DB_NAME}
+      PAYLIBRE_DB_USER: ${PAYLIBRE_DB_USER}
+      PAYLIBRE_DB_PASSWORD: ${PAYLIBRE_DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/postgres-init.sh:/docker-entrypoint-initdb.d/10-init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7-alpine}
+    container_name: xental-redis
+    restart: unless-stopped
+    networks: [internal]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---- Application services (images built by their own repos) ----------
+  xental-api:
+    image: ${XENTAL_API_IMAGE:?set XENTAL_API_IMAGE in versions/<env>.env}
+    container_name: xental-api
+    restart: unless-stopped
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${XENTAL_ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_HTTP_PORTS: "8080"
+      LOG_DIRECTORY: /app/logs
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${XENTAL_DB_NAME};Username=${XENTAL_DB_USER};Password=${XENTAL_DB_PASSWORD}"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+    volumes:
+      - xental-logs:/app/logs
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=xental-internal"
+      - "traefik.http.routers.xental-api.rule=Host(`${XENTAL_API_HOST}`)"
+      - "traefik.http.routers.xental-api.entrypoints=websecure"
+      - "traefik.http.routers.xental-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.xental-api.middlewares=security-headers@file"
+      - "traefik.http.services.xental-api.loadbalancer.server.port=8080"
+      - "traefik.http.services.xental-api.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.xental-api.loadbalancer.healthcheck.interval=15s"
+
+  paylibre-api:
+    image: ${PAYLIBRE_API_IMAGE:?set PAYLIBRE_API_IMAGE in versions/<env>.env}
+    container_name: paylibre-api
+    restart: unless-stopped
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${PAYLIBRE_ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_HTTP_PORTS: "8080"
+      LOG_DIRECTORY: /app/logs
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${PAYLIBRE_DB_NAME};Username=${PAYLIBRE_DB_USER};Password=${PAYLIBRE_DB_PASSWORD}"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+    volumes:
+      - paylibre-logs:/app/logs
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=xental-internal"
+      - "traefik.http.routers.paylibre-api.rule=Host(`${PAYLIBRE_API_HOST}`)"
+      - "traefik.http.routers.paylibre-api.entrypoints=websecure"
+      - "traefik.http.routers.paylibre-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.paylibre-api.middlewares=security-headers@file"
+      - "traefik.http.services.paylibre-api.loadbalancer.server.port=8080"
+      - "traefik.http.services.paylibre-api.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.paylibre-api.loadbalancer.healthcheck.interval=15s"

@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars and adjust. Do NOT commit terraform.tfvars.
+aws_region = "eu-west-1"
+
+# Defaults already target the XENTAL-PayLibre org; override if needed.
+# github_org = "XENTAL-PayLibre"
+# infra_repo = "xental-infrastructure"
+
+instance_types = {
+  staging    = "t3.small"
+  production = "t3.medium"
+}

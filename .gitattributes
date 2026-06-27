@@ -1,0 +1,8 @@
+# Force LF for everything that runs on the Linux hosts/containers, so a Windows
+# checkout never commits CRLF that would break shell scripts at runtime.
+* text=auto eol=lf
+*.sh   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.env  text eol=lf
+*.tf   text eol=lf

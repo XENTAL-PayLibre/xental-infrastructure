@@ -1,0 +1,41 @@
+# Traefik static configuration.
+# Routers/services are discovered from Docker labels; TLS certs are issued
+# automatically by Let's Encrypt and stored in the traefik-acme volume.
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      # All plain HTTP is permanently redirected to HTTPS.
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    # Only containers that opt in with `traefik.enable=true` are exposed.
+    exposedByDefault: false
+    network: xental-internal
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "${ACME_EMAIL}"
+      storage: /acme/acme.json
+      tlsChallenge: {}
+
+log:
+  level: INFO
+
+accessLog: {}

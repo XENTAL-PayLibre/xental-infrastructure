@@ -1,0 +1,56 @@
+# Manual rollback. Rewrites the version pins for an environment (to a specific
+# SHA, or to the previous pins) and redeploys through the same health-checked
+# path. The pin commit keeps git as the source of truth for what's running.
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: staging | production
+        required: true
+        type: choice
+        options: [staging, production]
+      sha:
+        description: target app SHA (empty = revert to previous pins)
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  pin-rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.environment == 'production' && 'main' || 'staging' }}
+          fetch-depth: 0
+      - name: Rewrite version pins
+        run: |
+          set -euo pipefail
+          ENV="${{ inputs.environment }}"
+          f="versions/${ENV}.env"
+          if [ -n "${{ inputs.sha }}" ]; then
+            sed -i -E "s#(XENTAL_API_IMAGE=ghcr.io/[^:]+):.*#\1:sha-${{ inputs.sha }}#"   "$f"
+            sed -i -E "s#(PAYLIBRE_API_IMAGE=ghcr.io/[^:]+):.*#\1:sha-${{ inputs.sha }}#" "$f"
+            MSG="rollback(${ENV}): pin apps to sha-${{ inputs.sha }}"
+          else
+            prev=$(git log -n 2 --format='%H' -- "$f" | tail -n 1)
+            test -n "$prev" || { echo "no prior pins to revert to" >&2; exit 1; }
+            git checkout "$prev" -- "$f"
+            MSG="rollback(${ENV}): revert to previous pins"
+          fi
+          git config user.name  "xental-ci"
+          git config user.email "ci@xental-paylibre.noreply"
+          git add "$f"
+          git commit -m "$MSG" || { echo "nothing to roll back"; exit 0; }
+          git push
+
+  deploy:
+    needs: pin-rollback
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: ${{ inputs.environment }}
+    secrets: inherit
