@@ -101,6 +101,11 @@ services:
       LOG_DIRECTORY: /app/logs
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${XENTAL_DB_NAME};Username=${XENTAL_DB_USER};Password=${XENTAL_DB_PASSWORD}"
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      # OpenTelemetry → Alloy (empty endpoint when monitoring is off = disabled).
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${MONITORING_HOST:+http://alloy:4317}
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SERVICE_NAME: xental-api
+      OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=${ENVIRONMENT}"
     volumes:
       - xental-logs:/app/logs
     labels:
@@ -109,7 +114,7 @@ services:
       - "traefik.http.routers.xental-api.rule=Host(`${XENTAL_API_HOST}`)"
       - "traefik.http.routers.xental-api.entrypoints=websecure"
       - "traefik.http.routers.xental-api.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.xental-api.middlewares=security-headers@file"
+      - "traefik.http.routers.xental-api.middlewares=api-chain@file"
       - "traefik.http.services.xental-api.loadbalancer.server.port=8080"
       - "traefik.http.services.xental-api.loadbalancer.healthcheck.path=/health"
       - "traefik.http.services.xental-api.loadbalancer.healthcheck.interval=15s"
@@ -128,6 +133,11 @@ services:
       LOG_DIRECTORY: /app/logs
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${PAYLIBRE_DB_NAME};Username=${PAYLIBRE_DB_USER};Password=${PAYLIBRE_DB_PASSWORD}"
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      # OpenTelemetry → Alloy (empty endpoint when monitoring is off = disabled).
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${MONITORING_HOST:+http://alloy:4317}
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SERVICE_NAME: paylibre-api
+      OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=${ENVIRONMENT}"
     volumes:
       - paylibre-logs:/app/logs
     labels:
@@ -136,7 +146,7 @@ services:
       - "traefik.http.routers.paylibre-api.rule=Host(`${PAYLIBRE_API_HOST}`)"
       - "traefik.http.routers.paylibre-api.entrypoints=websecure"
       - "traefik.http.routers.paylibre-api.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.paylibre-api.middlewares=security-headers@file"
+      - "traefik.http.routers.paylibre-api.middlewares=api-chain@file"
       - "traefik.http.services.paylibre-api.loadbalancer.server.port=8080"
       - "traefik.http.services.paylibre-api.loadbalancer.healthcheck.path=/health"
       - "traefik.http.services.paylibre-api.loadbalancer.healthcheck.interval=15s"

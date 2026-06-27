@@ -39,12 +39,15 @@ if grep -qE '^MONITORING_HOST=.+' "$INCOMING"; then
   MON_OVERLAY=(-f compose/docker-compose.monitoring.yml)
 fi
 
+# Database backups run in every environment.
+BACKUP_OVERLAY=(-f compose/docker-compose.backup.yml)
+
 deploy_with() {
   local ef="$1"
   # --project-directory pins relative bind-mount paths (./scripts, ./traefik)
   # to the repo root rather than the compose/ subdir where the files live.
-  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" "${MON_OVERLAY[@]}" --env-file "$ef" pull
-  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" "${MON_OVERLAY[@]}" --env-file "$ef" up -d --remove-orphans
+  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" "${MON_OVERLAY[@]}" "${BACKUP_OVERLAY[@]}" --env-file "$ef" pull
+  docker compose --project-directory "$REPO_DIR" -f "$BASE" -f "$OVERRIDE" "${MON_OVERLAY[@]}" "${BACKUP_OVERLAY[@]}" --env-file "$ef" up -d --remove-orphans
 }
 
 ghcr_login_from() {
