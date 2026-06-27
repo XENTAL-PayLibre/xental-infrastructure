@@ -1,0 +1,78 @@
+// Grafana Alloy — per app-host agent. Ships to the monitoring host (push model):
+//   - host metrics (node) + container metrics (cAdvisor) + app /metrics  -> Prometheus remote_write
+//   - container stdout logs (incl. xental-api / paylibre-api Serilog)     -> Loki
+// MONITORING_HOST and ENVIRONMENT come from the container environment.
+
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+// ============================ METRICS ============================
+prometheus.exporter.unix "node" { }
+
+prometheus.exporter.cadvisor "containers" {
+  docker_host      = "unix:///var/run/docker.sock"
+  storage_duration = "5m"
+}
+
+prometheus.scrape "infra" {
+  targets = concat(
+    prometheus.exporter.unix.node.targets,
+    prometheus.exporter.cadvisor.containers.targets,
+  )
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.mon.receiver]
+}
+
+// Application metrics (/metrics on the internal app containers).
+prometheus.scrape "apps" {
+  targets = [
+    { "__address__" = "xental-api:8080",   "job" = "xental-api" },
+    { "__address__" = "paylibre-api:8080", "job" = "paylibre-api" },
+  ]
+  metrics_path    = "/metrics"
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.mon.receiver]
+}
+
+prometheus.remote_write "mon" {
+  external_labels = { env = sys.env("ENVIRONMENT") }
+  endpoint {
+    url = "http://" + sys.env("MONITORING_HOST") + ":9090/api/v1/write"
+  }
+}
+
+// ============================= LOGS =============================
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Label each log stream with the container name as `job` (-> xental-api, etc.).
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/?(.*)"
+    target_label  = "job"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.process.addenv.receiver]
+}
+
+loki.process "addenv" {
+  stage.static_labels {
+    values = { env = sys.env("ENVIRONMENT") }
+  }
+  forward_to = [loki.write.mon.receiver]
+}
+
+loki.write "mon" {
+  endpoint {
+    url = "http://" + sys.env("MONITORING_HOST") + ":3100/loki/api/v1/push"
+  }
+}
