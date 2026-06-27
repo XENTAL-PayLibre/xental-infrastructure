@@ -110,6 +110,10 @@ resource "aws_instance" "host" {
     usermod -aG docker ubuntu || true
     mkdir -p /opt/xental-infrastructure/env
     chown -R ubuntu:ubuntu /opt/xental-infrastructure
+    # SSH brute-force protection.
+    apt-get install -y fail2ban
+    printf '[sshd]\nenabled = true\nmaxretry = 5\nbantime = 1h\nfindtime = 10m\n' > /etc/fail2ban/jail.d/sshd.local
+    systemctl enable --now fail2ban
   EOF
 
   tags = merge(var.tags, {

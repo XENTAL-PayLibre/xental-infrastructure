@@ -25,15 +25,27 @@ prometheus.scrape "infra" {
   forward_to      = [prometheus.remote_write.mon.receiver]
 }
 
-// Application metrics (/metrics on the internal app containers).
-prometheus.scrape "apps" {
-  targets = [
-    { "__address__" = "xental-api:8080",   "job" = "xental-api" },
-    { "__address__" = "paylibre-api:8080", "job" = "paylibre-api" },
-  ]
-  metrics_path    = "/metrics"
-  scrape_interval = "30s"
-  forward_to      = [prometheus.remote_write.mon.receiver]
+// Application telemetry: the .NET apps push OTLP (metrics + traces) here.
+otelcol.receiver.otlp "apps" {
+  grpc { endpoint = "0.0.0.0:4317" }
+  http { endpoint = "0.0.0.0:4318" }
+  output {
+    metrics = [otelcol.exporter.prometheus.toprom.input]
+    traces  = [otelcol.exporter.otlp.totempo.input]
+  }
+}
+
+// App metrics -> Prometheus remote_write (same store as host/container metrics).
+otelcol.exporter.prometheus "toprom" {
+  forward_to = [prometheus.remote_write.mon.receiver]
+}
+
+// App traces -> Tempo on the monitoring host.
+otelcol.exporter.otlp "totempo" {
+  client {
+    endpoint = sys.env("MONITORING_HOST") + ":4317"
+    tls { insecure = true }
+  }
 }
 
 prometheus.remote_write "mon" {

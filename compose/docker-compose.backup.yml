@@ -1,0 +1,36 @@
+# Database backup overlay. Always safe to include: dumps to a local volume by
+# default; uploads to S3 only when BACKUP_S3_BUCKET is set (needs host IAM S3
+# permission). Runs a dump on start, then every BACKUP_INTERVAL_SECONDS.
+name: xental
+
+services:
+  db-backup:
+    image: ${POSTGRES_IMAGE:-postgres:17-alpine}
+    container_name: xental-db-backup
+    restart: unless-stopped
+    networks: [internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      XENTAL_DB_NAME: ${XENTAL_DB_NAME}
+      PAYLIBRE_DB_NAME: ${PAYLIBRE_DB_NAME}
+      ENVIRONMENT: ${ENVIRONMENT}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-eu-west-1}
+    volumes:
+      - ./scripts/db-backup.sh:/backup.sh:ro
+      - db-backups:/backups
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        if [ -n "$${BACKUP_S3_BUCKET}" ]; then apk add --no-cache aws-cli >/dev/null 2>&1 || true; fi;
+        while true; do /bin/sh /backup.sh || echo 'backup run failed';
+        sleep "$${BACKUP_INTERVAL_SECONDS:-86400}"; done
+
+volumes:
+  db-backups:
