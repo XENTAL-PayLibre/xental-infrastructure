@@ -102,6 +102,27 @@ services:
       LOG_DIRECTORY: /app/logs
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${XENTAL_DB_NAME};Username=${XENTAL_DB_USER};Password=${XENTAL_DB_PASSWORD}"
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
+      # Public base URL — used to build magic-link + OAuth callback URLs.
+      App__BaseUrl: "https://${XENTAL_API_HOST}"
+      # JWT (signing key is a secret; issuer/audience are non-secret defaults).
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY as a GitHub secret}
+      Jwt__Issuer: ${JWT_ISSUER:-xental}
+      Jwt__Audience: ${JWT_AUDIENCE:-xental-api}
+      # Transactional email (Resend). Empty until secrets set (sends are skipped/logged).
+      Resend__ApiKey: ${RESEND_API_KEY:-}
+      Resend__FromEmail: ${RESEND_FROM_EMAIL:-}
+      # Social login (optional; empty disables the provider).
+      Auth__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Auth__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Auth__GitHub__ClientId: ${GH_OAUTH_CLIENT_ID:-}
+      Auth__GitHub__ClientSecret: ${GH_OAUTH_CLIENT_SECRET:-}
+      # Nomba integration (Phase 2). Base URL non-secret; credentials are secrets.
+      Nomba__BaseUrl: ${NOMBA_BASE_URL:-https://api.nomba.com/v1/}
+      Nomba__ClientId: ${NOMBA_CLIENT_ID:-}
+      Nomba__ClientSecret: ${NOMBA_CLIENT_SECRET:-}
+      Nomba__AccountId: ${NOMBA_ACCOUNT_ID:-}
+      Nomba__SubAccountId: ${NOMBA_SUB_ACCOUNT_ID:-}
+      Nomba__TokenRefreshSeconds: ${NOMBA_TOKEN_REFRESH_SECONDS:-1500}
       # OpenTelemetry → Alloy (empty endpoint when monitoring is off = disabled).
       OTEL_EXPORTER_OTLP_ENDPOINT: ${MONITORING_HOST:+http://alloy:4317}
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
