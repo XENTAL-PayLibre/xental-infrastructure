@@ -37,10 +37,23 @@ REQUIRED_SECRETS=(
   REDIS_PASSWORD
   GHCR_USER
   GHCR_TOKEN
+  JWT_SIGNING_KEY
 )
 OPTIONAL_SECRETS=(
   TRAEFIK_DASHBOARD_AUTH
   CROWDSEC_BOUNCER_KEY
+  # Xental backend — transactional email (magic links / password reset).
+  RESEND_API_KEY
+  # Xental backend — social login (leave unset to disable a provider).
+  GOOGLE_CLIENT_ID
+  GOOGLE_CLIENT_SECRET
+  GITHUB_CLIENT_ID
+  GITHUB_CLIENT_SECRET
+  # Xental backend — Nomba integration (Phase 2).
+  NOMBA_CLIENT_ID
+  NOMBA_CLIENT_SECRET
+  NOMBA_ACCOUNT_ID
+  NOMBA_SUB_ACCOUNT_ID
 )
 
 # Keep only KEY=VALUE lines (drop comments/blanks) from the non-secret layers.
