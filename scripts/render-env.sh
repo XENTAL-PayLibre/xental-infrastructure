@@ -45,10 +45,12 @@ OPTIONAL_SECRETS=(
   # Xental backend — transactional email (magic links / password reset).
   RESEND_API_KEY
   # Xental backend — social login (leave unset to disable a provider).
+  # NB: secret names may not start with the reserved GITHUB_ prefix, so the
+  # GitHub OAuth app credentials use the GH_OAUTH_ prefix.
   GOOGLE_CLIENT_ID
   GOOGLE_CLIENT_SECRET
-  GITHUB_CLIENT_ID
-  GITHUB_CLIENT_SECRET
+  GH_OAUTH_CLIENT_ID
+  GH_OAUTH_CLIENT_SECRET
   # Xental backend — Nomba integration (Phase 2).
   NOMBA_CLIENT_ID
   NOMBA_CLIENT_SECRET
