@@ -63,6 +63,17 @@ jobs:
           GHCR_USER:              ${{ secrets.GHCR_USER }}
           GHCR_TOKEN:             ${{ secrets.GHCR_TOKEN }}
           TRAEFIK_DASHBOARD_AUTH: ${{ secrets.TRAEFIK_DASHBOARD_AUTH }}
+          # Xental backend (Stage 0-3) — auth, email, social login, Nomba.
+          JWT_SIGNING_KEY:        ${{ secrets.JWT_SIGNING_KEY }}
+          RESEND_API_KEY:         ${{ secrets.RESEND_API_KEY }}
+          GOOGLE_CLIENT_ID:       ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET:   ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GH_OAUTH_CLIENT_ID:     ${{ secrets.GH_OAUTH_CLIENT_ID }}
+          GH_OAUTH_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+          NOMBA_CLIENT_ID:        ${{ secrets.NOMBA_CLIENT_ID }}
+          NOMBA_CLIENT_SECRET:    ${{ secrets.NOMBA_CLIENT_SECRET }}
+          NOMBA_ACCOUNT_ID:       ${{ secrets.NOMBA_ACCOUNT_ID }}
+          NOMBA_SUB_ACCOUNT_ID:   ${{ secrets.NOMBA_SUB_ACCOUNT_ID }}
         run: |
           chmod +x scripts/render-env.sh
           scripts/render-env.sh "${ENVIRONMENT}"
