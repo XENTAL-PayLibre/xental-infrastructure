@@ -120,6 +120,8 @@ services:
       # Transactional email (Resend). Empty until secrets set (sends are skipped/logged).
       Resend__ApiKey: ${RESEND_API_KEY:-}
       Resend__FromEmail: ${RESEND_FROM_EMAIL:-}
+      # Operational alerts: email operators on unhandled 5xx (throttled).
+      Alerts__Email: ${ALERTS_EMAIL:-}
       # Social login (optional; empty disables the provider).
       Auth__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       Auth__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
