@@ -104,12 +104,19 @@ services:
       LOG_DIRECTORY: /app/logs
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${XENTAL_DB_NAME};Username=${XENTAL_DB_USER};Password=${XENTAL_DB_PASSWORD}"
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD}"
-      # Public base URL — used to build magic-link + OAuth callback URLs.
-      App__BaseUrl: "https://${XENTAL_API_HOST}"
+      # Frontend URL (user-facing pages) + this API's URL (magic-link target).
+      App__BaseUrl: ${FRONTEND_URL:-https://${XENTAL_API_HOST}}
+      App__ApiBaseUrl: "https://${XENTAL_API_HOST}"
       # JWT (signing key is a secret; issuer/audience are non-secret defaults).
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY as a GitHub secret}
       Jwt__Issuer: ${JWT_ISSUER:-xental}
       Jwt__Audience: ${JWT_AUDIENCE:-xental-api}
+      Jwt__DashboardTokenLifetimeSeconds: ${JWT_DASHBOARD_TOKEN_SECONDS:-900}
+      # Session cookies (HttpOnly+Secure) + rotating refresh token; CORS for the frontend.
+      Auth__RefreshTokenDays: ${AUTH_REFRESH_TOKEN_DAYS:-14}
+      Auth__CookieSecure: ${AUTH_COOKIE_SECURE:-true}
+      Auth__CookieDomain: ${AUTH_COOKIE_DOMAIN:-}
+      Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-}
       # Transactional email (Resend). Empty until secrets set (sends are skipped/logged).
       Resend__ApiKey: ${RESEND_API_KEY:-}
       Resend__FromEmail: ${RESEND_FROM_EMAIL:-}
