@@ -42,8 +42,9 @@ jobs:
         run: |
           set -euo pipefail
           case "${{ inputs.service }}" in
-            xental-backend) VAR=XENTAL_API_IMAGE;   IMG=ghcr.io/xental-paylibre/xental-backend ;;
-            paylibre)       VAR=PAYLIBRE_API_IMAGE; IMG=ghcr.io/xental-paylibre/paylibre ;;
+            xental-backend)  VAR=XENTAL_API_IMAGE;      IMG=ghcr.io/xental-paylibre/xental-backend ;;
+            xental-frontend) VAR=XENTAL_FRONTEND_IMAGE; IMG=ghcr.io/xental-paylibre/xental-frontend ;;
+            paylibre)        VAR=PAYLIBRE_API_IMAGE;    IMG=ghcr.io/xental-paylibre/paylibre ;;
             *) echo "unknown service: ${{ inputs.service }}" >&2; exit 1 ;;
           esac
           f="versions/${ENVIRONMENT}.env"

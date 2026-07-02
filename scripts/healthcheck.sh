@@ -15,6 +15,7 @@ SLEEP="${HEALTHCHECK_SLEEP:-3}"
 SERVICES=(
   "xental-api:8080"
   "paylibre-api:8080"
+  "xental-frontend:3000"
 )
 
 check_one() {

@@ -182,3 +182,24 @@ services:
       - "traefik.http.services.paylibre-api.loadbalancer.server.port=8080"
       - "traefik.http.services.paylibre-api.loadbalancer.healthcheck.path=/health"
       - "traefik.http.services.paylibre-api.loadbalancer.healthcheck.interval=15s"
+
+  # ---- Frontend (Next.js) — served at the root domain --------------------
+  xental-frontend:
+    image: ${XENTAL_FRONTEND_IMAGE:?set XENTAL_FRONTEND_IMAGE in versions/<env>.env}
+    container_name: xental-frontend
+    restart: unless-stopped
+    networks: [internal]
+    environment:
+      NODE_ENV: production
+      # Server-rendered parts read these at runtime; client bundles bake NEXT_PUBLIC_* at build.
+      NEXT_PUBLIC_APP_URL: ${FRONTEND_URL:-}
+      NEXT_PUBLIC_API_URL: "https://${XENTAL_API_HOST}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=xental-internal"
+      - "traefik.http.routers.xental-frontend.rule=Host(`${XENTAL_FRONTEND_HOST}`)"
+      - "traefik.http.routers.xental-frontend.entrypoints=websecure"
+      - "traefik.http.routers.xental-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.xental-frontend.loadbalancer.server.port=3000"
+      - "traefik.http.services.xental-frontend.loadbalancer.healthcheck.path=/health"
+      - "traefik.http.services.xental-frontend.loadbalancer.healthcheck.interval=15s"
