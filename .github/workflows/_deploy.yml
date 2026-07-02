@@ -74,6 +74,7 @@ jobs:
           NOMBA_CLIENT_SECRET:    ${{ secrets.NOMBA_CLIENT_SECRET }}
           NOMBA_ACCOUNT_ID:       ${{ secrets.NOMBA_ACCOUNT_ID }}
           NOMBA_SUB_ACCOUNT_ID:   ${{ secrets.NOMBA_SUB_ACCOUNT_ID }}
+          NOMBA_WEBHOOK_SECRET:   ${{ secrets.NOMBA_WEBHOOK_SECRET }}
         run: |
           chmod +x scripts/render-env.sh
           scripts/render-env.sh "${ENVIRONMENT}"
