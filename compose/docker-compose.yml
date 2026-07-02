@@ -132,6 +132,7 @@ services:
       Nomba__AccountId: ${NOMBA_ACCOUNT_ID:-}
       Nomba__SubAccountId: ${NOMBA_SUB_ACCOUNT_ID:-}
       Nomba__TokenRefreshSeconds: ${NOMBA_TOKEN_REFRESH_SECONDS:-1500}
+      Nomba__WebhookSecret: ${NOMBA_WEBHOOK_SECRET:-}
       # OpenTelemetry → Alloy (empty endpoint when monitoring is off = disabled).
       OTEL_EXPORTER_OTLP_ENDPOINT: ${MONITORING_HOST:+http://alloy:4317}
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
