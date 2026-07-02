@@ -42,7 +42,9 @@ services:
       - traefik-acme:/acme
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      ACME_EMAIL: ${ACME_EMAIL}
+      # Traefik reads static config from env vars too; this sets the ACME contact
+      # email (the YAML file can't interpolate ${ACME_EMAIL}).
+      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: ${ACME_EMAIL}
     labels:
       - "traefik.enable=true"
 

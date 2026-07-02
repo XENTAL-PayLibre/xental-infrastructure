@@ -31,7 +31,9 @@ providers:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: "${ACME_EMAIL}"
+      # The email is injected via the environment variable
+      # TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL — Traefik does NOT
+      # interpolate ${VARS} inside this static config file, so it must not be set here.
       storage: /acme/acme.json
       tlsChallenge: {}
 
